@@ -1,46 +1,52 @@
-import math
-
-from PyQt6.QtCharts import QChartView, QChart, QValueAxis, QLineSeries, QSplineSeries
-from PyQt6.QtCore import Qt
+from PyQt6.QtCharts import QChartView, QChart, QLineSeries, QDateTimeAxis, QValueAxis
+from PyQt6.QtCore import Qt, QDateTime
+from PyQt6.QtGui import QMouseEvent
 
 
 class CentralWidget(QChartView):
     def __init__(self, parent=None):
         super(CentralWidget, self).__init__(parent)
 
-        delta_x = 0.1
-        x_min = -2.5
-        x_max = 3.0
+        self.__series = QLineSeries()
+        self.__series.setName("Goldpreisentwicklung in $")
 
-        start = int(x_min / delta_x)
-        end = int(x_max / delta_x)
-        values_x = [i * delta_x for i in range(start, end)]
+        axis_x = QDateTimeAxis()
+        axis_x.setTitleText("Datum")
 
-        values_sine = []
-        for x in values_x:
-            values_sine.append(x ** 3 - 2 * x ** 2 + 4 * x - 3)
+        start_date = QDateTime.currentDateTime().addSecs(-1 * 60 * 10)
+        end_date = QDateTime.currentDateTime()
 
-        series_sinus = QLineSeries()
-        series_sinus.setName("Polynom")
+        axis_x.setRange(start_date, end_date)
 
-        for i in range(len(values_x)):
-            series_sinus.append(values_x[i], values_sine[i])
+        axis_x.setFormat("hh:mm:ss")
 
-        axis_x = QValueAxis()
-        axis_x.setRange(x_min, x_max)
-        axis_x.setTitleText("x-Achse")
+        axis_dollar = QValueAxis()
+        axis_dollar.setTitleText("Goldpreis in $")
+        axis_dollar.setRange(1250, 2750)
 
-        axis_y = QValueAxis()
-        axis_y.setTitleText("y-Achse")
+        self.__chart = QChart()
+        self.__chart.setTitle("Goldpreisentwicklung")
 
-        q_chart = QChart()
+        self.__chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        self.__chart.addAxis(axis_dollar, Qt.AlignmentFlag.AlignLeft)
 
-        q_chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
-        q_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        self.__chart.addSeries(self.__series)
 
-        q_chart.addSeries(series_sinus)
+        self.__series.attachAxis(axis_x)
+        self.__series.attachAxis(axis_dollar)
 
-        series_sinus.attachAxis(axis_x)
-        series_sinus.attachAxis(axis_y)
+        self.setChart(self.__chart)
 
-        self.setChart(q_chart)
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button().LeftButton:
+            event.accept()
+
+            new_value = self.__chart.mapToValue(event.pos().toPointF(), self.__series)
+
+            for i in range(len(self.__series.points())):
+                if self.__series.at(i).x() > new_value.x():
+                    self.__series.insert(i, new_value)
+
+                    return
+
+            self.__series.append(new_value)
