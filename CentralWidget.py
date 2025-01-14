@@ -1,39 +1,50 @@
 from PyQt6.QtCharts import QChartView, QChart, QLineSeries, QDateTimeAxis, QValueAxis
-from PyQt6.QtCore import Qt, QDateTime
+from PyQt6.QtCore import Qt, QDateTime, QPointF
 from PyQt6.QtGui import QMouseEvent
+
+import random
 
 
 class CentralWidget(QChartView):
     def __init__(self, parent=None):
         super(CentralWidget, self).__init__(parent)
 
-        self.__series = QLineSeries()
-        self.__series.setName("Goldpreisentwicklung in $")
+        random.seed(QDateTime.currentMSecsSinceEpoch())
 
-        axis_x = QDateTimeAxis()
-        axis_x.setTitleText("Datum")
+        self.__series_clicked = QLineSeries()
+        self.__series_clicked.setName("Current Time - Clicked Value")
 
-        start_date = QDateTime.currentDateTime().addSecs(-1 * 60 * 10)
-        end_date = QDateTime.currentDateTime()
+        self.__series_random = QLineSeries()
+        self.__series_random.setName("Clicked Time - Random Value")
 
-        axis_x.setRange(start_date, end_date)
+        axis_datetime = QDateTimeAxis()
+        axis_datetime.setTitleText("Datum")
 
-        axis_x.setFormat("hh:mm:ss")
+        start_date = QDateTime.currentDateTime().addSecs(-1 * 60 * 5)
+        end_date = QDateTime.currentDateTime().addSecs(1 * 60 * 5)
+
+        axis_datetime.setRange(start_date, end_date)
+
+        axis_datetime.setFormat("hh:mm:ss")
 
         axis_dollar = QValueAxis()
-        axis_dollar.setTitleText("Goldpreis in $")
-        axis_dollar.setRange(1250, 2750)
+        axis_dollar.setTitleText("Wertebereich")
+        axis_dollar.setRange(1000, 2000)
 
         self.__chart = QChart()
-        self.__chart.setTitle("Goldpreisentwicklung")
+        self.__chart.setTitle("Random numbers, dates & mouseEvents")
 
-        self.__chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        self.__chart.addAxis(axis_datetime, Qt.AlignmentFlag.AlignBottom)
         self.__chart.addAxis(axis_dollar, Qt.AlignmentFlag.AlignLeft)
 
-        self.__chart.addSeries(self.__series)
+        self.__chart.addSeries(self.__series_clicked)
+        self.__chart.addSeries(self.__series_random)
 
-        self.__series.attachAxis(axis_x)
-        self.__series.attachAxis(axis_dollar)
+        self.__series_clicked.attachAxis(axis_datetime)
+        self.__series_clicked.attachAxis(axis_dollar)
+
+        self.__series_random.attachAxis(axis_datetime)
+        self.__series_random.attachAxis(axis_dollar)
 
         self.setChart(self.__chart)
 
@@ -41,12 +52,15 @@ class CentralWidget(QChartView):
         if event.button().LeftButton:
             event.accept()
 
-            new_value = self.__chart.mapToValue(event.pos().toPointF(), self.__series)
+            new_value = self.__chart.mapToValue(event.pos().toPointF(), self.__series_clicked)
+            new_point_clicked = QPointF(QDateTime.currentMSecsSinceEpoch(), new_value.y())
+            self.__series_clicked.append(new_point_clicked)
 
-            for i in range(len(self.__series.points())):
-                if self.__series.at(i).x() > new_value.x():
-                    self.__series.insert(i, new_value)
+            new_point_random = QPointF(new_value.x(), random.randrange(1000, 2000))
+            for i in range(len(self.__series_random.points())):
+                if self.__series_random.at(i).x() > new_point_random.x():
+                    self.__series_random.insert(i, new_point_random)
 
                     return
 
-            self.__series.append(new_value)
+            self.__series_random.append(new_point_random)
